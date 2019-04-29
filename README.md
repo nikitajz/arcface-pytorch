@@ -2,6 +2,8 @@
 
 Arcface の pytorch 実装
 
+オリジナル実装: [https://github.com/ronghuaiyang/arcface-pytorch](https://github.com/ronghuaiyang/arcface-pytorch) :pray:
+
 ## Requierments
 
 * docker
