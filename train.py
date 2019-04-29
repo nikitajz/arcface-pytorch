@@ -119,7 +119,7 @@ if __name__ == '__main__':
 
             metric = calculate_metrics(output, label)
             callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
-            break
+
         if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
             save_model(model, opt.checkpoints_path, opt.backbone, epoch)
 
