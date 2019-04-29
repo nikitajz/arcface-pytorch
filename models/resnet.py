@@ -4,13 +4,8 @@ Created on 18-5-21 下午5:26
 
 @author: ronghuaiyang
 """
-import torch
 import torch.nn as nn
-import math
 import torch.utils.model_zoo as model_zoo
-import torch.nn.utils.weight_norm as weight_norm
-import torch.nn.functional as F
-
 
 # __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
 #            'resnet152']
@@ -145,10 +140,10 @@ class SEBlock(nn.Module):
         super(SEBlock, self).__init__()
         self.avg_pool = nn.AdaptiveAvgPool2d(1)
         self.fc = nn.Sequential(
-                nn.Linear(channel, channel // reduction),
-                nn.PReLU(),
-                nn.Linear(channel // reduction, channel),
-                nn.Sigmoid()
+            nn.Linear(channel, channel // reduction),
+            nn.PReLU(),
+            nn.Linear(channel // reduction, channel),
+            nn.Sigmoid()
         )
 
     def forward(self, x):
@@ -341,3 +336,22 @@ def resnet152(pretrained=False, **kwargs):
 def resnet_face18(use_se=True, **kwargs):
     model = ResNetFace(IRBlock, [2, 2, 2, 2], use_se=use_se, **kwargs)
     return model
+
+
+_models = [
+    resnet18,
+    resnet34,
+    resnet50,
+    resnet101,
+    resnet152,
+    resnet_face18
+]
+
+
+def get_model(name: str):
+    for m in _models:
+        if name == m.__name__:
+            return m()
+
+    names = ','.join([m.__name__ for m in _models])
+    raise ValueError(f'Mode Name Must Be in {names}. Actually:{name}')
