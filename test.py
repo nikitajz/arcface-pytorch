@@ -34,6 +34,7 @@ def load_image(img_path):
     image = cv2.imread(img_path, 0)
     if image is None:
         return None
+    image = cv2.resize(image, Config.input_shape[1:])
     image = np.dstack((image, np.fliplr(image)))
     image = image.transpose((2, 0, 1))
     image = image[:, np.newaxis, :, :]
@@ -168,7 +169,3 @@ if __name__ == '__main__':
 
     model.eval()
     lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
-
-
-
-
