@@ -1,8 +1,11 @@
 from __future__ import print_function
 
+from datetime import datetime
+
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
 
+from callbacks import TensorboardLogger, LoggingCallback, Callbacks
 from data.dataset import CASIADataset
 from test import *
 from utils import Visualizer
@@ -17,6 +20,12 @@ def save_model(model, save_path, name, iter_cnt):
     save_name = os.path.join(save_path, name + '_' + str(iter_cnt) + '.pth')
     torch.save(model.state_dict(), save_name)
     return save_name
+
+
+def get_time_string(t=None, formatting='{0:%Y-%m-%d_%H-%M-%S}'):
+    if t is None:
+        t = datetime.now()
+    return formatting.format(t)
 
 
 if __name__ == '__main__':
@@ -68,11 +77,21 @@ if __name__ == '__main__':
                                      lr=opt.lr, weight_decay=opt.weight_decay)
     scheduler = StepLR(optimizer, step_size=opt.lr_step, gamma=0.1)
 
+    now = get_time_string()
+
+    callback = Callbacks([
+        TensorboardLogger(log_dir=os.path.join(Config.DATASET_DIR, f'tensorboard_logging/{now}')),
+        LoggingCallback()
+    ])
+
     start = time.time()
     for epoch in range(opt.max_epoch):
         scheduler.step()
         model.train()
+        callback.on_epoch_start(epoch)
+
         for i, data in enumerate(trainloader):
+            callback.on_batch_start(n_batch=i)
             data_input, label = data
             data_input = data_input.to(device)
             label = label.to(device).long()
@@ -84,27 +103,17 @@ if __name__ == '__main__':
             optimizer.step()
 
             iters = epoch * len(trainloader) + i
-
-            if iters % opt.print_freq == 0:
-                output = output.data.cpu().numpy()
-                output = np.argmax(output, axis=1)
-                label = label.data.cpu().numpy()
-                acc = np.mean((output == label).astype(int))
-                speed = opt.print_freq / (time.time() - start)
-                time_str = time.asctime(time.localtime(time.time()))
-                loss_val = loss.item()
-                logger.info(f'epoch: {epoch} iter {i} loss: {loss_val:.3f} acc :{acc:.3f} [iters/s {speed:.2f}]')
-
-                if opt.display:
-                    visualizer.display_current_results(iters, loss.item(), name='train_loss')
-                    visualizer.display_current_results(iters, acc, name='train_acc')
-
-                start = time.time()
+            callback.on_batch_end(loss=loss.item(),
+                                  output=output.data.cpu().numpy(),
+                                  n_batch=i,
+                                  label=label.data.cpu().numpy())
 
         if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
             save_model(model, opt.checkpoints_path, opt.backbone, epoch)
 
         model.eval()
-        acc = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
+        acc, th = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
         if opt.display:
             visualizer.display_current_results(iters, acc, name='test_acc')
+
+        callback.on_epoch_end(epoch, valid_metric={'accuracy': acc, 'threshold': th})
