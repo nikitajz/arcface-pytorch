@@ -29,7 +29,7 @@ class Config(object):
     test_root = '/data1/Datasets/anti-spoofing/test/data_align_256'
     test_list = 'test.txt'
 
-    lfw_root = os.path.join(DATASET_DIR, 'lfw')
+    lfw_root = os.path.join(DATASET_DIR, 'lfw-deepfunneled')
     lfw_test_list = os.path.join(lfw_root, 'lfw_test_pair.txt')
 
     checkpoints_path = os.path.join(DATASET_DIR, 'checkpoints')
@@ -40,7 +40,7 @@ class Config(object):
     # [TODO] arg で制御したい気分
     save_interval = 10
 
-    train_batch_size = 100  # batch size
+    train_batch_size = 128 # batch size
     test_batch_size = 64
 
     input_shape = (1, 128, 128)
@@ -50,7 +50,7 @@ class Config(object):
     use_gpu = True  # use GPU or not
     gpu_id = '0, 1'
     num_workers = 4  # how many workers for loading data
-    print_freq = 1000  # print info every N batch
+    print_freq = 100  # print info every N batch
 
     debug_file = '/tmp/debug'  # if os.path.exists(debug_file): enter ipdb
     result_file = 'result.csv'
