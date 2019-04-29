@@ -12,9 +12,18 @@ Arcface の pytorch 実装
 ## SetUp
 
 ```bash
-docker-compose build
+# 環境変数のコピー. 自分でいい感じにデータセットへのパスを書き換えてください
 cp project.env .env
+
+# image の build
+docker-compose build
+
+# jupyter server の container が起動
 docker-compose up -d
+
+# コードの実行は container 内部でね
+docker exec -it arc-face-pytorch bash
+# or docker exec -it arc-face-pytorch zsh
 ```
 
 ## データセットの準備
