@@ -16,7 +16,6 @@ class Config(object):
     loss = 'focal_loss'
 
     display = False
-
     finetune = False
 
     DATASET_DIR = '/workdir/dataset/'
@@ -40,12 +39,13 @@ class Config(object):
     # [TODO] arg で制御したい気分
     save_interval = 10
 
-    train_batch_size = 128 # batch size
+    train_batch_size = 128  # batch size
     test_batch_size = 64
 
     input_shape = (1, 128, 128)
 
-    optimizer = 'sgd'
+    # optimizer name: `"adam"`, `"sgd"`, `"adabound"`
+    optimizer = 'adabound'
 
     use_gpu = True  # use GPU or not
     gpu_id = '0, 1'
@@ -56,7 +56,9 @@ class Config(object):
     result_file = 'result.csv'
 
     max_epoch = 50
-    lr = .05  # initial learning rate
+    lr = .01  # initial learning rate
+    final_lr = .1
+    amsbound = True
     lr_step = 10
     lr_decay = 0.95  # when val_loss increase, lr = lr*lr_decay
-    weight_decay = 0
+    weight_decay = 1e-8
