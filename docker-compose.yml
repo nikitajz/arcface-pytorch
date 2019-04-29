@@ -5,6 +5,7 @@ services:
       context: .
       dockerfile: ./docker/Dockerfile
     container_name: arc-face-pytorch
+    shm_size: 32GB
     volumes:
       - ./:/workdir
       - ${DATASET_DIR}:/workdir/dataset
