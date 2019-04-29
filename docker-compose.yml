@@ -1,0 +1,22 @@
+version: '2.3'
+services:
+  notebook:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    container_name: arc-face-pytorch
+    volumes:
+      - ./:/workdir
+      - ${DATASET_DIR}:/workdir/dataset
+    working_dir: /workdir
+    tty: true
+    command: jupyter notebook --allow-root --ip 0.0.0.0 --port 8888
+    runtime: nvidia
+    env_file: .env
+    environment:
+      # workingdir に python の path を通すことで
+      # プロジェクトルートに配置した自作のモジュールを import できるようにしている
+      - PYTHONPATH=/workdir
+    ports:
+      - 7919:8888
+      - 4001:8000
