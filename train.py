@@ -6,8 +6,8 @@ from adabound import AdaBound
 from sklearn.metrics import accuracy_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
-
-from callbacks import TensorboardLogger, LoggingCallback, Callbacks
+from config import env
+from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNofityCallback
 from data.dataset import CASIADataset
 from test import *
 from utils import Visualizer
@@ -90,8 +90,8 @@ if __name__ == '__main__':
     elif opt.optimizer == 'adabound':
         optimizer = AdaBound(params=params,
                              lr=opt.lr,
-                             final_lr=opt.Adabound.final_lr,
-                             amsbound=opt.Adabound.amsbound)
+                             final_lr=opt.final_lr,
+                             amsbound=opt.amsbound)
     elif opt.optimizer == 'adam':
         optimizer = torch.optim.Adam(params,
                                      lr=opt.lr, weight_decay=opt.weight_decay)
@@ -101,40 +101,57 @@ if __name__ == '__main__':
 
     now = get_time_string()
 
-    callback = Callbacks([
+    callbacks = [
         TensorboardLogger(log_dir=os.path.join(Config.DATASET_DIR, f'tensorboard_logging/{now}')),
         LoggingCallback()
-    ])
+    ]
+
+    if env.SLACK_INCOMMING_URL is not None:
+        callbacks.append(SlackNofityCallback(url=env.SLACK_INCOMMING_URL, config=Config))
+
+    callback = Callbacks(callbacks)
 
     start = time.time()
-    for epoch in range(opt.max_epoch):
-        scheduler.step()
-        model.train()
-        callback.on_epoch_start(epoch)
 
-        for i, data in enumerate(trainloader):
-            callback.on_batch_start(n_batch=i)
-            data_input, label = data
-            data_input = data_input.to(device)
-            label = label.to(device).long()
-            feature = model(data_input)
-            output = metric_fc(feature, label)
-            loss = criterion(output, label)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+    try:
+        for epoch in range(opt.max_epoch):
+            scheduler.step()
+            model.train()
+            callback.on_epoch_start(epoch)
 
-            iters = epoch * len(trainloader) + i
+            for i, data in enumerate(trainloader):
+                callback.on_batch_start(n_batch=i)
+                data_input, label = data
+                data_input = data_input.to(device)
+                label = label.to(device).long()
+                feature = model(data_input)
+                output = metric_fc(feature, label)
+                loss = criterion(output, label)
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
 
-            metric = calculate_metrics(output, label)
-            callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
+                iters = epoch * len(trainloader) + i
 
-        if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
-            save_model(model, opt.checkpoints_path, opt.backbone, epoch)
+                metric = calculate_metrics(output, label)
+                callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
 
-        model.eval()
-        acc, th = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
-        if opt.display:
-            visualizer.display_current_results(iters, acc, name='test_acc')
+            if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
+                save_model(model, opt.checkpoints_path, opt.backbone, epoch)
 
-        callback.on_epoch_end(epoch, valid_metric={'accuracy': acc, 'threshold': th})
+            model.eval()
+            acc, th = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
+            if opt.display:
+                visualizer.display_current_results(iters, acc, name='test_acc')
+
+            callback.on_epoch_end(epoch, valid_metric={'accuracy': acc, 'threshold': th})
+
+        callback.on_end_train()
+    except KeyboardInterrupt as e:
+        callback.on_end_train(e)
+
+    except Exception as e:
+        import traceback
+
+        logger.warning(traceback.format_exc())
+        callback.on_end_train(e)

@@ -1,6 +1,7 @@
 import os
 from typing import List
-
+import json
+import requests
 import numpy as np
 import pandas as pd
 from tensorboardX import SummaryWriter
@@ -19,6 +20,9 @@ class AbstractCallback:
         pass
 
     def on_batch_end(self, loss, n_batch, train_metric: dict):
+        pass
+
+    def on_end_train(self, exception=None):
         pass
 
 
@@ -62,6 +66,61 @@ def get_str_from_dict(d):
     return s
 
 
+class SlackNofityCallback(AbstractCallback):
+    def __init__(self, url, config):
+        self.url = url
+        self.epoch_score_df = pd.DataFrame()
+
+        def props(cls):
+            return [[i, getattr(cls, i)] for i in cls.__dict__.keys() if i[:1] != '_']
+
+        self.conf_data = dict(props(config))
+
+    def on_epoch_start(self, epoch):
+        self.current_epoch = epoch
+
+        if epoch > 0:
+            return
+
+        self.post(text=json.dumps(self.conf_data, indent=4), title='Start Training')
+
+    def on_batch_end(self, loss, n_batch, train_metric: dict):
+        df_i = pd.DataFrame([train_metric])
+        df_i['loss'] = loss
+        df_i['epoch'] = self.current_epoch
+
+        self.epoch_score_df = pd.concat([self.epoch_score_df, df_i], ignore_index=True)
+
+    def on_epoch_end(self, epoch, valid_metric: dict):
+        df = self.epoch_score_df[self.epoch_score_df['epoch'] == self.current_epoch]
+        train_metric = df.mean().to_dict()
+
+        text = f'[epoch: {epoch:03d}] train: {get_str_from_dict(train_metric)} valid: {get_str_from_dict(valid_metric)}'
+        self.post(text=text)
+
+    def post(self, text, title=None, color=None):
+        payload = {
+            'attachments': [{
+                'text': text,
+                'title': title,
+                'color': color
+            }]
+        }
+        requests.post(self.url, json.dumps(payload))
+
+    def on_end_train(self, exception=None):
+        if exception is None:
+            return
+
+        import traceback
+
+        if isinstance(exception, KeyboardInterrupt):
+            self.post(text='keyboard interrupted.')
+            return
+
+        self.post(text=traceback.format_exc(), title='Training Is Stopped', color='#d80b65')
+
+
 class LoggingCallback(AbstractCallback):
     def __init__(self, log_freq=50):
         self.log_freq = log_freq
@@ -89,7 +148,7 @@ class LoggingCallback(AbstractCallback):
         self.logger.info(f'[validate] {s}')
 
 
-class Callbacks:
+class Callbacks(AbstractCallback):
     def __init__(self, callbacks: List[AbstractCallback]):
         self.callbacks = callbacks
 
@@ -108,3 +167,7 @@ class Callbacks:
     def on_batch_end(self, loss, n_batch, train_metric: dict):
         for c in self.callbacks:
             c.on_batch_end(loss, n_batch, train_metric)
+
+    def on_end_train(self, exception=None):
+        for c in self.callbacks:
+            c.on_end_train(exception)

@@ -16,7 +16,6 @@ class Config(object):
     loss = 'focal_loss'
 
     display = False
-
     finetune = False
 
     DATASET_DIR = '/workdir/dataset/'
@@ -45,6 +44,7 @@ class Config(object):
 
     input_shape = (1, 128, 128)
 
+    # optimizer name: `"adam"`, `"sgd"`, `"adabound"`
     optimizer = 'adabound'
 
     use_gpu = True  # use GPU or not
@@ -56,12 +56,9 @@ class Config(object):
     result_file = 'result.csv'
 
     max_epoch = 50
-    lr = .1  # initial learning rate
-
-    class Adabound:
-        final_lr = .5
-        amsbound = True
-
+    lr = .01  # initial learning rate
+    final_lr = .1
+    amsbound = True
     lr_step = 10
     lr_decay = 0.95  # when val_loss increase, lr = lr*lr_decay
-    weight_decay = 0
+    weight_decay = 1e-8
