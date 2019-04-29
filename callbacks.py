@@ -3,7 +3,6 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import accuracy_score
 from tensorboardX import SummaryWriter
 
 from utils.logger import get_logger
@@ -19,7 +18,7 @@ class AbstractCallback:
     def on_batch_start(self, n_batch, *args, **kwargs):
         pass
 
-    def on_batch_end(self, loss: float, n_batch, output: np.ndarray, label: np.ndarray):
+    def on_batch_end(self, loss, n_batch, train_metric: dict):
         pass
 
 
@@ -29,26 +28,38 @@ class TensorboardLogger(AbstractCallback):
         self.writer = SummaryWriter(log_dir=log_dir)
         self.current_epoch = -1
         self.history = []
+        self.epoch_score_df = pd.DataFrame()
 
     def on_epoch_start(self, epoch):
         self.current_epoch = epoch
-        self.epoch_score_df = pd.DataFrame()
 
-    def calculate_metrics(self, loss, y_true, y_pred):
-        # Memo: この計算ロジックの実装は tensorboard 以外でも使うのでここに書くのはおかしい.
-        acc = accuracy_score(y_true, y_pred)
-        df = pd.DataFrame([loss, acc], index=['loss', 'accuracy']).T
-        return df
+    def on_batch_end(self, loss, n_batch, train_metric: dict):
+        df_i = pd.DataFrame([train_metric])
+        df_i['loss'] = loss
+        df_i['epoch'] = self.current_epoch
+        df_i['n_batch'] = n_batch
 
-    def on_batch_end(self, loss, n_batch, output, label):
-        pred_label = np.argmax(output, axis=1)
-        df_i = self.calculate_metrics(loss, label, pred_label)
         self.epoch_score_df = pd.concat([self.epoch_score_df, df_i], ignore_index=True)
 
     def on_epoch_end(self, epoch, valid_metric: dict):
-        train_metric = self.epoch_score_df.mean().to_dict()
-        self.writer.add_scalars('train', tag_scalar_dict=train_metric, global_step=epoch)
-        self.writer.add_scalars('validation', tag_scalar_dict=valid_metric, global_step=epoch)
+        df = self.epoch_score_df[self.epoch_score_df['epoch'] == self.current_epoch]
+        train_metric = df.mean().to_dict()
+
+        for k, v in train_metric.items():
+            self.writer.add_scalar(f'train_{k}', scalar_value=v, global_step=epoch)
+        for k, v in valid_metric.items():
+            self.writer.add_scalar(f'valid_{k}', scalar_value=v, global_step=epoch)
+
+        self.epoch_score_df.to_csv(os.path.join(self.writer.log_dir, 'train_log.csv'), index=False)
+
+
+def get_str_from_dict(d):
+    s = []
+    for k, v in d.items():
+        s.append(f'{k}: {v:.3f}')
+
+    s = ' '.join(s)
+    return s
 
 
 class LoggingCallback(AbstractCallback):
@@ -61,22 +72,20 @@ class LoggingCallback(AbstractCallback):
     def on_epoch_start(self, epoch: int):
         self.epoch = epoch
 
-    def on_batch_end(self, loss: float, n_batch, output: np.ndarray, label: np.ndarray):
+    def on_batch_end(self, loss, n_batch, train_metric: dict):
         self.losses.append(loss)
 
         if n_batch % self.log_freq != 0:
             return
 
         loss = np.mean(self.losses)
+        self.logger.info(
+            f'[epoch:{self.epoch:04d}-{n_batch:05d}] loss: {loss:.3f} {get_str_from_dict(train_metric)}')
+
         self.losses = []
-        self.logger.info(f'[epoch:{self.epoch:04d}] batch:{n_batch:05d} loss: {loss:.3f}')
 
     def on_epoch_end(self, epoch: int, valid_metric: dict):
-        s = []
-        for k, v in valid_metric.items():
-            s.append(f'{k} {v:.3f}')
-
-        s = ' '.join(s)
+        s = get_str_from_dict(valid_metric)
         self.logger.info(f'[validate] {s}')
 
 
@@ -96,6 +105,6 @@ class Callbacks:
         for c in self.callbacks:
             c.on_batch_start(*args, **kwargs)
 
-    def on_batch_end(self, *args, **kwargs):
+    def on_batch_end(self, loss, n_batch, train_metric: dict):
         for c in self.callbacks:
-            c.on_batch_end(*args, **kwargs)
+            c.on_batch_end(loss, n_batch, train_metric)
