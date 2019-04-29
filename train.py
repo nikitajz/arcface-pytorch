@@ -2,6 +2,7 @@ from __future__ import print_function
 
 from datetime import datetime
 
+from sklearn.metrics import accuracy_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
 
@@ -26,6 +27,18 @@ def get_time_string(t=None, formatting='{0:%Y-%m-%d_%H-%M-%S}'):
     if t is None:
         t = datetime.now()
     return formatting.format(t)
+
+
+def calculate_metrics(output, label):
+    y_pred = output.data.cpu().numpy()
+    y_true = label.data.cpu().numpy()
+
+    pred_label = np.argmax(y_pred, axis=1)
+    data = {
+        'logloss': torch.nn.CrossEntropyLoss()(output, label).item(),
+        'accuracy': accuracy_score(y_true, pred_label)
+    }
+    return data
 
 
 if __name__ == '__main__':
@@ -103,11 +116,10 @@ if __name__ == '__main__':
             optimizer.step()
 
             iters = epoch * len(trainloader) + i
-            callback.on_batch_end(loss=loss.item(),
-                                  output=output.data.cpu().numpy(),
-                                  n_batch=i,
-                                  label=label.data.cpu().numpy())
 
+            metric = calculate_metrics(output, label)
+            callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
+            break
         if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
             save_model(model, opt.checkpoints_path, opt.backbone, epoch)
 
