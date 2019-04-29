@@ -18,6 +18,7 @@ services:
       # workingdir に python の path を通すことで
       # プロジェクトルートに配置した自作のモジュールを import できるようにしている
       - PYTHONPATH=/workdir
+      - TENSORBOARD_PORT=8000
     ports:
       - 7919:8888
       - 4001:8000
