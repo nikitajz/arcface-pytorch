@@ -2,6 +2,7 @@ from __future__ import print_function
 
 from datetime import datetime
 
+from adabound import AdaBound
 from sklearn.metrics import accuracy_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
@@ -82,12 +83,20 @@ if __name__ == '__main__':
     metric_fc.to(device)
     metric_fc = DataParallel(metric_fc)
 
+    params = [{'params': model.parameters()}, {'params': metric_fc.parameters()}]
     if opt.optimizer == 'sgd':
-        optimizer = torch.optim.SGD([{'params': model.parameters()}, {'params': metric_fc.parameters()}],
+        optimizer = torch.optim.SGD(params,
                                     lr=opt.lr, weight_decay=opt.weight_decay, momentum=0.8, nesterov=True)
-    else:
-        optimizer = torch.optim.Adam([{'params': model.parameters()}, {'params': metric_fc.parameters()}],
+    elif opt.optimizer == 'adabound':
+        optimizer = AdaBound(params=params,
+                             lr=opt.lr,
+                             final_lr=opt.Adabound.final_lr,
+                             amsbound=opt.Adabound.amsbound)
+    elif opt.optimizer == 'adam':
+        optimizer = torch.optim.Adam(params,
                                      lr=opt.lr, weight_decay=opt.weight_decay)
+    else:
+        raise ValueError('Invalid Optimizer Name: {}'.format(opt.optimizer))
     scheduler = StepLR(optimizer, step_size=opt.lr_step, gamma=0.1)
 
     now = get_time_string()
