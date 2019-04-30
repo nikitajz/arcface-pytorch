@@ -111,7 +111,7 @@ if __name__ == '__main__':
         LoggingCallback()
     ]
 
-    if env.SLACK_INCOMMING_URL is not None:
+    if env.SLACK_INCOMMING_URL:
         logger.info('Add Slack Notification')
         callbacks.append(SlackNofityCallback(url=env.SLACK_INCOMMING_URL, config=Config))
 
