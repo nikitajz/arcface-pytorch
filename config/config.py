@@ -9,7 +9,7 @@ class Config(object):
     env = 'default'
     backbone = 'resnet18'
     classify = 'softmax'
-    num_classes = 13938
+    num_classes = 10575
     metric = 'arc_margin'
     easy_margin = False
     use_se = False
@@ -42,10 +42,10 @@ class Config(object):
     train_batch_size = 128  # batch size
     test_batch_size = 64
 
-    input_shape = (1, 128, 128)
+    input_shape = (3, 128, 128)
 
     # optimizer name: `"adam"`, `"sgd"`, `"adabound"`
-    optimizer = 'adabound'
+    optimizer = 'sgd'
 
     use_gpu = True  # use GPU or not
     gpu_id = '0, 1'
@@ -55,10 +55,11 @@ class Config(object):
     debug_file = '/tmp/debug'  # if os.path.exists(debug_file): enter ipdb
     result_file = 'result.csv'
 
-    max_epoch = 50
-    lr = .01  # initial learning rate
+    max_epoch = 100
+    lr = .1  # initial learning rate
+    lr_step = 10  # cut lr frequency
+    weight_decay = 1e-8
+
+    # use in adabound
     final_lr = .1
     amsbound = True
-    lr_step = 10
-    lr_decay = 0.95  # when val_loss increase, lr = lr*lr_decay
-    weight_decay = 1e-8
