@@ -47,6 +47,7 @@ class TensorboardLogger(AbstractCallback):
 
     def on_epoch_end(self, epoch, valid_metric: dict):
         df = self.epoch_score_df[self.epoch_score_df['epoch'] == self.current_epoch]
+        df = df.drop(columns=['epoch', 'n_batch'])
         train_metric = df.mean().to_dict()
 
         for k, v in train_metric.items():
@@ -60,7 +61,10 @@ class TensorboardLogger(AbstractCallback):
 def get_str_from_dict(d):
     s = []
     for k, v in d.items():
-        s.append(f'{k}: {v:.3f}')
+        if v > 1:
+            s.append(f'{k}: {v:.3f}')
+        else:
+            s.append(f'{k}: {v:.3e}')
 
     s = ' '.join(s)
     return s

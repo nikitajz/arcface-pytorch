@@ -30,6 +30,11 @@ def get_time_string(t=None, formatting='{0:%Y-%m-%d_%H-%M-%S}'):
     return formatting.format(t)
 
 
+def get_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        return param_group['lr']
+
+
 def calculate_metrics(output, label):
     y_pred = output.data.cpu().numpy()
     y_true = label.data.cpu().numpy()
@@ -107,6 +112,7 @@ if __name__ == '__main__':
     ]
 
     if env.SLACK_INCOMMING_URL is not None:
+        logger.info('Add Slack Notification')
         callbacks.append(SlackNofityCallback(url=env.SLACK_INCOMMING_URL, config=Config))
 
     callback = Callbacks(callbacks)
@@ -134,6 +140,7 @@ if __name__ == '__main__':
                 iters = epoch * len(trainloader) + i
 
                 metric = calculate_metrics(output, label)
+                metric['lr'] = get_lr(optimizer)
                 callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
 
             if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
