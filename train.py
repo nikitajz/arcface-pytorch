@@ -16,6 +16,25 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+def top_accuracy(output, target, topk=(1,)):
+    """Computes the accuracy over the k top predictions for the specified values of k"""
+    with torch.no_grad():
+        maxk = max(topk)
+        batch_size = target.size(0)
+
+        _, pred = output.topk(maxk, 1, True, True)
+        pred = pred.t()
+        correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+        res = []
+        for k in topk:
+            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+            x = correct_k.mul_(100.0 / batch_size)
+            x = x.data.cpu().numpy()[0]
+            res.append(x)
+        return res
+
+
 def save_model(model, save_path, name, iter_cnt):
     os.makedirs(save_path, exist_ok=True)
 
@@ -39,12 +58,30 @@ def calculate_metrics(output, label):
     y_pred = output.data.cpu().numpy()
     y_true = label.data.cpu().numpy()
 
+    top_k = [1, 3, 5, 10]
+    acc = top_accuracy(output, label, topk=top_k)
+
+    with torch.no_grad():
+        logloss = torch.nn.CrossEntropyLoss()(output, label)
+
     pred_label = np.argmax(y_pred, axis=1)
     data = {
-        'logloss': torch.nn.CrossEntropyLoss()(output, label).item(),
-        'accuracy': accuracy_score(y_true, pred_label)
+        'logloss': logloss.item(),
+        'accuracy': accuracy_score(y_true, pred_label),
     }
+
+    for k, acc in zip(top_k, acc):
+        data[f'acc@{k}'] = acc
     return data
+
+
+class LinearMetrics(nn.Module):
+    def __init__(self, input_dim, out_dim):
+        super(LinearMetrics, self).__init__()
+        self.linear = nn.Linear(input_dim, out_dim)
+
+    def forward(self, x, label):
+        return self.linear(x)
 
 
 if __name__ == '__main__':
@@ -70,16 +107,18 @@ if __name__ == '__main__':
     else:
         criterion = torch.nn.CrossEntropyLoss()
 
-    model = get_model(opt.backbone)
+    model = get_model(opt.backbone)()
 
     if opt.metric == 'add_margin':
         metric_fc = AddMarginProduct(512, opt.num_classes, s=30, m=0.35)
     elif opt.metric == 'arc_margin':
-        metric_fc = ArcMarginProduct(512, opt.num_classes, s=30, m=0.5, easy_margin=opt.easy_margin)
+        metric_fc = ArcMarginProduct(512, opt.num_classes, s=30, m=0.35, easy_margin=opt.easy_margin)
     elif opt.metric == 'sphere':
         metric_fc = SphereProduct(512, opt.num_classes, m=4)
+    elif opt.metric == 'linear':
+        metric_fc = LinearMetrics(512, opt.num_classes)
     else:
-        metric_fc = nn.Linear(512, opt.num_classes)
+        raise ValueError('Invalid Metric Name: {}'.format(opt.metric))
 
     # view_model(model, opt.input_shape)
     print(model)
@@ -89,19 +128,20 @@ if __name__ == '__main__':
     metric_fc = DataParallel(metric_fc)
 
     params = [{'params': model.parameters()}, {'params': metric_fc.parameters()}]
-    if opt.optimizer == 'sgd':
+    if Config.optimizer == 'sgd':
         optimizer = torch.optim.SGD(params,
-                                    lr=opt.lr, weight_decay=opt.weight_decay, momentum=0.8, nesterov=True)
-    elif opt.optimizer == 'adabound':
+                                    lr=opt.lr, weight_decay=opt.weight_decay, momentum=.9,
+                                    nesterov=True)
+    elif Config.optimizer == 'adabound':
         optimizer = AdaBound(params=params,
                              lr=opt.lr,
                              final_lr=opt.final_lr,
                              amsbound=opt.amsbound)
-    elif opt.optimizer == 'adam':
+    elif Config.optimizer == 'adam':
         optimizer = torch.optim.Adam(params,
                                      lr=opt.lr, weight_decay=opt.weight_decay)
     else:
-        raise ValueError('Invalid Optimizer Name: {}'.format(opt.optimizer))
+        raise ValueError('Invalid Optimizer Name: {}'.format(Config.optimizer))
     scheduler = StepLR(optimizer, step_size=opt.lr_step, gamma=0.1)
 
     now = get_time_string()
@@ -111,7 +151,7 @@ if __name__ == '__main__':
         LoggingCallback()
     ]
 
-    if env.SLACK_INCOMMING_URL is not None:
+    if env.SLACK_INCOMMING_URL and not Config.is_debug:
         logger.info('Add Slack Notification')
         callbacks.append(SlackNofityCallback(url=env.SLACK_INCOMMING_URL, config=Config))
 
@@ -142,7 +182,8 @@ if __name__ == '__main__':
                 metric = calculate_metrics(output, label)
                 metric['lr'] = get_lr(optimizer)
                 callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
-
+                if Config.is_debug:
+                    break
             if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
                 save_model(model, opt.checkpoints_path, opt.backbone, epoch)
 
