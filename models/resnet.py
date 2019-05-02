@@ -33,7 +33,7 @@ class BasicBlock(nn.Module):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2d(planes)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2d(planes)
         self.downsample = downsample
@@ -108,7 +108,7 @@ class Bottleneck(nn.Module):
         self.bn2 = nn.BatchNorm2d(planes)
         self.conv3 = nn.Conv2d(planes, planes * self.expansion, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2d(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.downsample = downsample
         self.stride = stride
 
@@ -158,7 +158,7 @@ class ResNetFace(nn.Module):
         self.inplanes = 64
         self.use_se = use_se
         super(ResNetFace, self).__init__()
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, padding=1, bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.prelu = nn.PReLU()
         self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2)
@@ -168,7 +168,7 @@ class ResNetFace(nn.Module):
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
         self.bn4 = nn.BatchNorm2d(512)
         self.dropout = nn.Dropout()
-        self.fc5 = nn.Linear(512 * 8 * 8, 512)
+        self.fc5 = nn.Linear(512 * 13 * 13, 512)
         self.bn5 = nn.BatchNorm1d(512)
 
         for m in self.modules():
@@ -217,24 +217,30 @@ class ResNetFace(nn.Module):
 
 
 class ResNet(nn.Module):
+    """
+    ResNet Implementation
+
+    実装の例: https://github.com/pytorch/vision/blob/master/torchvision/models/resnet.py#L112
+    """
 
     def __init__(self, block, layers):
+        self.embedding_dim = 512
         self.inplanes = 64
         super(ResNet, self).__init__()
-        # self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3,
-        #                        bias=False)
-        self.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1,
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=1, padding=1,
                                bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
-        # self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0], stride=2)
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        # self.avgpool = nn.AvgPool2d(8, stride=1)
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
-        self.fc5 = nn.Linear(512 * 8 * 8, 512)
+
+        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
+        self.maxpool = nn.AdaptiveMaxPool2d(output_size=(1, 1))
+        self.fc = nn.Linear(512 * block.expansion, self.embedding_dim)
+        self.bn = nn.BatchNorm1d(self.embedding_dim)
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -264,18 +270,20 @@ class ResNet(nn.Module):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
-        # x = self.maxpool(x)
+        x = self.maxpool1(x)
 
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        # x = nn.AvgPool2d(kernel_size=x.size()[2:])(x)
-        # x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc5(x)
 
-        return x
+        # average と max pooling を使ってる
+        output = self.avgpool(x)
+        output.add_(self.maxpool(x))
+        output = output.view(output.size(0), -1)
+        output = self.fc(output)
+        output = self.bn(output)
+        return output
 
 
 def resnet18(pretrained=False, **kwargs):
@@ -351,7 +359,7 @@ _models = [
 def get_model(name: str):
     for m in _models:
         if name == m.__name__:
-            return m()
+            return m
 
     names = ','.join([m.__name__ for m in _models])
     raise ValueError(f'Mode Name Must Be in {names}. Actually:{name}')

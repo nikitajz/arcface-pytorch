@@ -13,9 +13,11 @@ import cv2
 import numpy as np
 import torch
 from torch.nn import DataParallel
-
+from tqdm import tqdm
 from config import Config
 from models import *
+from PIL import Image
+from typing import List
 
 
 def get_lfw_list(pair_list):
@@ -34,24 +36,28 @@ def get_lfw_list(pair_list):
 
 
 def load_image(img_path):
-    image = cv2.imread(img_path, 0)
-    if image is None:
-        return None
-    image = cv2.resize(image, Config.input_shape[1:])
-    image = np.dstack((image, np.fliplr(image)))
-    image = image.transpose((2, 0, 1))
-    image = image[:, np.newaxis, :, :]
-    image = image.astype(np.float32, copy=False)
-    image -= 127.5
-    image /= 127.5
-    return image
+    img = Image.open(img_path)
+    img = img.resize(Config.input_shape[1:])
+
+    if Config.input_shape[0] == 1:
+        img = img.convert('L')
+    else:
+        img = img.convert('RGB')
+
+    img = np.array(img, dtype=np.float32)
+    img = img.transpose((2, 0, 1))
+    img = img[None, :, :, :]
+    img -= 127.5
+    img /= 127.5
+
+    return img
 
 
 def get_featurs(model, test_list, batch_size=10):
     images = None
     features = None
     cnt = 0
-    for i, img_path in enumerate(test_list):
+    for i, img_path in tqdm(enumerate(test_list), total=len(test_list)):
         image = load_image(img_path)
         if image is None:
             print('read {} error'.format(img_path))
@@ -68,16 +74,16 @@ def get_featurs(model, test_list, batch_size=10):
             data = data.to(torch.device("cuda"))
             output = model(data)
             output = output.data.cpu().numpy()
-
-            fe_1 = output[::2]
-            fe_2 = output[1::2]
-            feature = np.hstack((fe_1, fe_2))
+            # print(output.shape)
+            # fe_1 = output[::2]
+            # fe_2 = output[1::2]
+            # feature = np.hstack((fe_1, fe_2))
             # print(feature.shape)
 
             if features is None:
-                features = feature
+                features = output
             else:
-                features = np.vstack((features, feature))
+                features = np.vstack((features, output))
 
             images = None
 
@@ -120,8 +126,8 @@ def cal_accuracy(y_score, y_true):
     return (best_acc, best_th)
 
 
-def test_performance(fe_dict, pair_list):
-    with open(pair_list, 'r') as fd:
+def test_performance(fe_dict, pair_list_path):
+    with open(pair_list_path, 'r') as fd:
         pairs = fd.readlines()
 
     sims = []
@@ -140,15 +146,15 @@ def test_performance(fe_dict, pair_list):
     return acc, th
 
 
-def lfw_test(model, img_paths, identity_list, compair_list, batch_size):
+def lfw_test(model, img_paths: List[str], identity_list: List[str], compare_path, batch_size):
     s = time.time()
     features, cnt = get_featurs(model, img_paths, batch_size=batch_size)
-    # print(features.shape)
     t = time.time() - s
-    # print('total time is {}, average time is {}'.format(t, t / cnt))
-    fe_dict = get_feature_dict(identity_list, features)
-    acc, th = test_performance(fe_dict, compair_list)
-    # print('lfw face verification accuracy: ', acc, 'threshold: ', th)
+    # fe_dict = get_feature_dict(identity_list, features)
+
+    # 画像ファイル名から特徴量への射影
+    fe_dict = dict(zip(identity_list, features))
+    acc, th = test_performance(fe_dict, compare_path)
     return acc, th
 
 

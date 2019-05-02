@@ -31,12 +31,23 @@ class CASIADataset(data.Dataset):
                 normalize
             ])
 
+    @property
+    def is_greyscale(self):
+        return self.input_shape[0] == 1
+
+    @property
+    def img_to(self):
+        if self.is_greyscale:
+            return 'L'
+        else:
+            return 'RGB'
+
     def __getitem__(self, index):
         data = self.index_to_data[index]
         img_path, label = data['img_path'], data['label']
 
         data = Image.open(img_path)
-        data = data.convert('L')
+        data = data.convert(self.img_to)
         data = self.transforms(data)
         return data.float(), label
 
