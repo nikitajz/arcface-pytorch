@@ -1,16 +1,32 @@
 import os
 
+from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+
+
+def get_arguments():
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter,
+                            description=__doc__)
+
+    parser.add_argument('--debug', action='store_true',
+                        help='If add it, run with debugging mode (not record and stop one batch per epoch')
+    parser.add_argument('--optimizer', type=str, default='sgd', help='Optimizer Name')
+    parser.add_argument('--metric', type=str, default='arc_margin', help='Metrics Name')
+    parser.add_argument('--lr', type=float, default=.1, help='learning rate')
+    return vars(parser.parse_args())
+
 
 class Config(object):
     """
     学習/検証を実行する際の設定値
     """
+    args = get_arguments()
 
+    is_debug = args.get('debug', False)
     env = 'default'
     backbone = 'resnet18'
     classify = 'softmax'
-    num_classes = 10575
-    metric = 'arc_margin'
+    num_classes = 912
+    metric = args.get('metric', None)
     easy_margin = False
     use_se = False
     loss = 'focal_loss'
@@ -42,22 +58,22 @@ class Config(object):
     train_batch_size = 128  # batch size
     test_batch_size = 64
 
-    input_shape = (3, 128, 128)
+    input_shape = (3, 200, 200)
 
     # optimizer name: `"adam"`, `"sgd"`, `"adabound"`
-    optimizer = 'sgd'
+    optimizer = args.get('optimizer', None)
 
     use_gpu = True  # use GPU or not
     gpu_id = '0, 1'
-    num_workers = 4  # how many workers for loading data
+    num_workers = 8  # how many workers for loading data
     print_freq = 100  # print info every N batch
 
     debug_file = '/tmp/debug'  # if os.path.exists(debug_file): enter ipdb
     result_file = 'result.csv'
 
     max_epoch = 100
-    lr = .1  # initial learning rate
-    lr_step = 10  # cut lr frequency
+    lr = args.get('lr', 0.1)  # initial learning rate
+    lr_step = 20  # cut lr frequency
     weight_decay = 1e-8
 
     # use in adabound
