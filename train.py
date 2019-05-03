@@ -1,11 +1,11 @@
 from __future__ import print_function
 
-from datetime import datetime
+from collections import OrderedDict
 
 from adabound import AdaBound
-from sklearn.metrics import accuracy_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
+
 import env
 from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNofityCallback, WeightCheckpointCallback
 from data.dataset import get_dataset
@@ -40,13 +40,8 @@ def save_model(model, save_path, name, iter_cnt):
 
     save_name = os.path.join(save_path, name + '_' + str(iter_cnt) + '.pth')
     torch.save(model.state_dict(), save_name)
+    logger.info(f'save {name} to {save_name}')
     return save_name
-
-
-def get_time_string(t=None, formatting='{0:%Y-%m-%d_%H-%M-%S}'):
-    if t is None:
-        t = datetime.now()
-    return formatting.format(t)
 
 
 def get_lr(optimizer):
@@ -64,11 +59,8 @@ def calculate_metrics(output, label):
     with torch.no_grad():
         logloss = torch.nn.CrossEntropyLoss()(output, label)
 
-    pred_label = np.argmax(y_pred, axis=1)
-    data = {
-        'logloss': logloss.item(),
-        'accuracy': accuracy_score(y_true, pred_label),
-    }
+    data = OrderedDict()
+    data['logloss'] = logloss.item()
 
     for k, acc in zip(top_k, acc):
         data[f'acc@{k}'] = acc
@@ -109,6 +101,10 @@ if __name__ == '__main__':
 
     model = get_model(opt.backbone)()
 
+    if Config.pretrained_model_path:
+        logger.info(f'load weight from {Config.pretrained_model_path}')
+        model.load_state_dict(torch.load(Config.pretrained_model_path))
+
     if opt.metric == 'add_margin':
         metric_fc = AddMarginProduct(512, train_dataset.n_classes, s=30, m=0.35)
     elif opt.metric == 'arc_margin':
@@ -142,12 +138,10 @@ if __name__ == '__main__':
         raise ValueError('Invalid Optimizer Name: {}'.format(Config.optimizer))
     scheduler = StepLR(optimizer, step_size=opt.lr_step, gamma=0.1)
 
-    now = get_time_string()
-
     callbacks = [
-        TensorboardLogger(log_dir=os.path.join(Config.DATASET_DIR, f'tensorboard_logging/{now}')),
+        TensorboardLogger(log_dir=Config.checkpoints_path),
         LoggingCallback(),
-        WeightCheckpointCallback(save_to=os.path.join(Config.DATASET_DIR, f'weight_checkpoits/{now}'),
+        WeightCheckpointCallback(save_to=Config.checkpoints_path,
                                  metric_model=metric_fc)
     ]
 
@@ -186,6 +180,7 @@ if __name__ == '__main__':
                     break
             if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
                 save_model(model, opt.checkpoints_path, opt.backbone, epoch)
+                save_model(metric_fc, opt.checkpoints_path, opt.metric, epoch)
 
             model.eval()
             acc, th = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
