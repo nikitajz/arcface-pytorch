@@ -24,6 +24,8 @@ def get_arguments():
     # optimizer settings
     parser.add_argument('--optimizer', type=str, default='sgd', help='Optimizer Name')
     parser.add_argument('--lr', type=float, default=.1, help='learning rate')
+    parser.add_argument('--final_lr', type=float, default=.1,
+                        help='final learning rate (only activa on `optimizer="adabound"`')
 
     # run settings
     parser.add_argument('--batch', type=int, default=128, help='training batch size')
@@ -94,7 +96,7 @@ class Config(object):
     weight_decay = 5e-4
 
     # use in adabound
-    final_lr = .1
+    final_lr = args.get('final_lr', .2)
     amsbound = True
 
     checkpoints_path = os.path.join(DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{now}')
