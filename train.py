@@ -6,9 +6,9 @@ from adabound import AdaBound
 from sklearn.metrics import accuracy_score
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
-from config import env
-from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNofityCallback
-from data.dataset import CASIADataset
+import env
+from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNofityCallback, WeightCheckpointCallback
+from data.dataset import get_dataset
 from test import *
 from utils import Visualizer
 from utils.logger import get_logger
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         visualizer = Visualizer()
     device = torch.device("cuda")
 
-    train_dataset = CASIADataset(phase='train', input_shape=opt.input_shape)
+    train_dataset = get_dataset(Config.dataset, phase='train', input_shape=opt.input_shape)
     trainloader = data.DataLoader(train_dataset,
                                   batch_size=opt.train_batch_size,
                                   shuffle=True,
@@ -110,22 +110,20 @@ if __name__ == '__main__':
     model = get_model(opt.backbone)()
 
     if opt.metric == 'add_margin':
-        metric_fc = AddMarginProduct(512, opt.num_classes, s=30, m=0.35)
+        metric_fc = AddMarginProduct(512, train_dataset.n_classes, s=30, m=0.35)
     elif opt.metric == 'arc_margin':
-        metric_fc = ArcMarginProduct(512, opt.num_classes, s=30, m=0.35, easy_margin=opt.easy_margin)
+        metric_fc = ArcMarginProduct(512, train_dataset.n_classes, s=30, m=0.35, easy_margin=opt.easy_margin)
     elif opt.metric == 'sphere':
-        metric_fc = SphereProduct(512, opt.num_classes, m=4)
+        metric_fc = SphereProduct(512, train_dataset.n_classes, m=4)
     elif opt.metric == 'linear':
-        metric_fc = LinearMetrics(512, opt.num_classes)
+        metric_fc = LinearMetrics(512, train_dataset.n_classes)
     else:
         raise ValueError('Invalid Metric Name: {}'.format(opt.metric))
 
     # view_model(model, opt.input_shape)
     print(model)
     model.to(device)
-    model = DataParallel(model)
     metric_fc.to(device)
-    metric_fc = DataParallel(metric_fc)
 
     params = [{'params': model.parameters()}, {'params': metric_fc.parameters()}]
     if Config.optimizer == 'sgd':
@@ -148,7 +146,9 @@ if __name__ == '__main__':
 
     callbacks = [
         TensorboardLogger(log_dir=os.path.join(Config.DATASET_DIR, f'tensorboard_logging/{now}')),
-        LoggingCallback()
+        LoggingCallback(),
+        WeightCheckpointCallback(save_to=os.path.join(Config.DATASET_DIR, f'weight_checkpoits/{now}'),
+                                 metric_model=metric_fc)
     ]
 
     if env.SLACK_INCOMMING_URL and not Config.is_debug:
