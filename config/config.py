@@ -9,6 +9,8 @@ def get_arguments():
 
     parser.add_argument('--debug', action='store_true',
                         help='If add it, run with debugging mode (not record and stop one batch per epoch')
+
+    parser.add_argument('--dataset', type=str, default='casia', help='dataset name')
     parser.add_argument('--optimizer', type=str, default='sgd', help='Optimizer Name')
     parser.add_argument('--metric', type=str, default='arc_margin', help='Metrics Name')
     parser.add_argument('--lr', type=float, default=.1, help='learning rate')
@@ -25,11 +27,12 @@ class Config(object):
     env = 'default'
     backbone = 'resnet18'
     classify = 'softmax'
-    num_classes = 912
+    dataset = args.get('dataset', None)
+
     metric = args.get('metric', None)
     easy_margin = False
     use_se = False
-    loss = 'focal_loss'
+    loss = 'logloss'
 
     display = False
     finetune = False
@@ -74,7 +77,7 @@ class Config(object):
     max_epoch = 100
     lr = args.get('lr', 0.1)  # initial learning rate
     lr_step = 20  # cut lr frequency
-    weight_decay = 1e-8
+    weight_decay = 5e-4
 
     # use in adabound
     final_lr = .1

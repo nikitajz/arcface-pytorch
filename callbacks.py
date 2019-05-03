@@ -8,6 +8,8 @@ from tensorboardX import SummaryWriter
 
 from utils.logger import get_logger
 
+logger = get_logger(__name__)
+
 
 class AbstractCallback:
     def on_epoch_start(self, epoch: int):
@@ -128,7 +130,6 @@ class SlackNofityCallback(AbstractCallback):
 class LoggingCallback(AbstractCallback):
     def __init__(self, log_freq=50):
         self.log_freq = log_freq
-        self.logger = get_logger(name=__name__)
         self.epoch = 0
         self.losses = []
 
@@ -142,14 +143,34 @@ class LoggingCallback(AbstractCallback):
             return
 
         loss = np.mean(self.losses)
-        self.logger.info(
+        logger.info(
             f'[epoch:{self.epoch:04d}-{n_batch:05d}] loss: {loss:.3f} {get_str_from_dict(train_metric)}')
 
         self.losses = []
 
     def on_epoch_end(self, epoch: int, valid_metric: dict):
         s = get_str_from_dict(valid_metric)
-        self.logger.info(f'[validate] {s}')
+        logger.info(f'[validate] {s}')
+
+
+class WeightCheckpointCallback(AbstractCallback):
+    def __init__(self, metric_model, save_to, target='weight'):
+        self.model = metric_model
+        self.save_to = save_to
+        self.target = target
+
+        os.makedirs(self.save_to, exist_ok=True)
+
+    def on_epoch_end(self, epoch: int, valid_metric: dict):
+        weight = getattr(self.model, self.target, None)
+        if weight is None:
+            logger.warning('weight not found...')
+            return
+
+        fpath = os.path.join(self.save_to, f'{self.target}_{epoch}.npy')
+        weight = weight.data.cpu().numpy()
+        np.save(fpath, weight)
+        logger.info(f'save weight file to {fpath}')
 
 
 class Callbacks(AbstractCallback):

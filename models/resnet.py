@@ -281,8 +281,8 @@ class ResNet(nn.Module):
         output = self.avgpool(x)
         output.add_(self.maxpool(x))
         output = output.view(output.size(0), -1)
-        output = self.fc(output)
         output = self.bn(output)
+        output = self.fc(output)
         return output
 
 

@@ -89,7 +89,9 @@ class AddMarginProduct(nn.Module):
 
     def forward(self, input, label):
         # --------------------------- cos(theta) & phi(theta) ---------------------------
-        cosine = F.cosine_similarity(input, self.weight)
+        input = l2_norm(input)
+        weight_norm = l2_norm(self.weight, axis=0)
+        cosine = torch.mm(input, weight_norm)
         phi = cosine - self.m
         # --------------------------- convert label to one-hot ---------------------------
         one_hot = torch.zeros(cosine.size(), device='cuda')
