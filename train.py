@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import json
 from collections import OrderedDict
 
 from adabound import AdaBound
@@ -12,7 +13,7 @@ from data.dataset import get_dataset
 from test import *
 from utils import Visualizer
 from utils.logger import get_logger
-import json
+from utils.serializer import class_to_dict
 
 logger = get_logger(__name__)
 
@@ -154,7 +155,10 @@ if __name__ == '__main__':
 
     start = time.time()
 
-
+    with open(Config.config_path, 'w') as f:
+        data = class_to_dict(Config)
+        json.dump(data, f, indent=4, sort_keys=True)
+        logger.info(f'save config to {Config.config_path}')
 
     try:
         for epoch in range(opt.max_epoch):

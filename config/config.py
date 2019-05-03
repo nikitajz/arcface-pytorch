@@ -98,3 +98,4 @@ class Config(object):
     amsbound = True
 
     checkpoints_path = os.path.join(DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{now}')
+    config_path = os.path.join(checkpoints_path, 'train_config.json')
