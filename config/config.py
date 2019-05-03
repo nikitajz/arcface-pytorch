@@ -58,17 +58,8 @@ class Config(object):
 
     # CASIA DATASET のルートディレクトリ
     CASIA_ROOT = os.path.join(DATASET_DIR, 'CASIA-WebFace')
-
-    val_list = '/data/Datasets/webface/val_data_13938.txt'
-
-    test_root = '/data1/Datasets/anti-spoofing/test/data_align_256'
-    test_list = 'test.txt'
-
     lfw_root = os.path.join(DATASET_DIR, 'lfw-deepfunneled')
     lfw_test_list = os.path.join(lfw_root, 'lfw_test_pair.txt')
-
-    load_model_path = 'models/resnet18.pth'
-    test_model_path = 'checkpoints/resnet18_110.pth'
 
     # 学習に関するパラメータ
     # [TODO] arg で制御したい気分

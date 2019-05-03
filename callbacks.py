@@ -1,9 +1,10 @@
+import json
 import os
 from typing import List
-import json
-import requests
+
 import numpy as np
 import pandas as pd
+import requests
 from tensorboardX import SummaryWriter
 
 from utils.logger import get_logger
@@ -167,10 +168,13 @@ class WeightCheckpointCallback(AbstractCallback):
             logger.warning('weight not found...')
             return
 
-        fpath = os.path.join(self.save_to, f'{self.target}_{epoch}.npy')
-        weight = weight.data.cpu().numpy()
-        np.save(fpath, weight)
-        logger.info(f'save weight file to {fpath}')
+        try:
+            fpath = os.path.join(self.save_to, f'{self.target}_{epoch}.npy')
+            weight = weight.data.cpu().numpy()
+            np.save(fpath, weight)
+            logger.info(f'save weight file to {fpath}')
+        except Exception as e:
+            logger.warning(str(e))
 
 
 class Callbacks(AbstractCallback):
