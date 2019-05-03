@@ -1,5 +1,6 @@
 from __future__ import print_function
 
+import json
 from collections import OrderedDict
 
 from adabound import AdaBound
@@ -7,11 +8,12 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
 
 import env
-from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNofityCallback, WeightCheckpointCallback
+from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNotifyCallback, WeightCheckpointCallback
 from data.dataset import get_dataset
 from test import *
 from utils import Visualizer
 from utils.logger import get_logger
+from utils.serializer import class_to_dict
 
 logger = get_logger(__name__)
 
@@ -147,11 +149,16 @@ if __name__ == '__main__':
 
     if env.SLACK_INCOMMING_URL and not Config.is_debug:
         logger.info('Add Slack Notification')
-        callbacks.append(SlackNofityCallback(url=env.SLACK_INCOMMING_URL, config=Config))
+        callbacks.append(SlackNotifyCallback(url=env.SLACK_INCOMMING_URL, config=Config))
 
     callback = Callbacks(callbacks)
 
     start = time.time()
+
+    with open(Config.config_path, 'w') as f:
+        data = class_to_dict(Config)
+        json.dump(data, f, indent=4, sort_keys=True)
+        logger.info(f'save config to {Config.config_path}')
 
     try:
         for epoch in range(opt.max_epoch):
