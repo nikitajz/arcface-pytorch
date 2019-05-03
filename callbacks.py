@@ -72,7 +72,7 @@ def get_str_from_dict(d):
     return s
 
 
-class SlackNofityCallback(AbstractCallback):
+class SlackNotifyCallback(AbstractCallback):
     def __init__(self, url, config):
         self.url = url
         self.epoch_score_df = pd.DataFrame()
