@@ -44,7 +44,6 @@ class ArcMarginProduct(nn.Module):
 
     def forward(self, input, label):
         n_input = len(input)
-
         input = l2_norm(input)
         weight_norm = l2_norm(self.weight, axis=0)
         cos_theta = torch.mm(input, weight_norm)
@@ -84,7 +83,7 @@ class AddMarginProduct(nn.Module):
         self.out_features = out_features
         self.s = s
         self.m = m
-        self.weight = Parameter(torch.Tensor(out_features, in_features))
+        self.weight = Parameter(torch.Tensor(in_features, out_features))
         nn.init.xavier_uniform_(self.weight)
 
     def forward(self, input, label):
