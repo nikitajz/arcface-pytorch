@@ -1,5 +1,6 @@
 import json
 import os
+from collections import defaultdict
 from typing import List
 
 import numpy as np
@@ -129,29 +130,32 @@ class SlackNotifyCallback(AbstractCallback):
 
 
 class LoggingCallback(AbstractCallback):
-    def __init__(self, log_freq=50):
+    def __init__(self, log_freq=100):
         self.log_freq = log_freq
         self.epoch = 0
-        self.losses = []
+        self._init()
 
     def on_epoch_start(self, epoch: int):
         self.epoch = epoch
 
     def on_batch_end(self, loss, n_batch, train_metric: dict):
-        self.losses.append(loss)
+        for k, v in train_metric.items():
+            self.losses[k].append(v)
 
         if n_batch % self.log_freq != 0:
             return
 
-        loss = np.mean(self.losses)
+        data = dict([[k, np.mean(v)] for k, v in self.losses.items()])
         logger.info(
-            f'[epoch:{self.epoch:04d}-{n_batch:05d}] loss: {loss:.3f} {get_str_from_dict(train_metric)}')
+            f'[epoch:{self.epoch:04d}-{n_batch:05d}] {get_str_from_dict(data)}')
 
-        self.losses = []
+    def _init(self):
+        self.losses = defaultdict(list)
 
     def on_epoch_end(self, epoch: int, valid_metric: dict):
         s = get_str_from_dict(valid_metric)
         logger.info(f'[validate] {s}')
+        self._init()
 
 
 class WeightCheckpointCallback(AbstractCallback):

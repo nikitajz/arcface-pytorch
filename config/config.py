@@ -20,6 +20,8 @@ def get_arguments():
     parser.add_argument('--dataset', type=str, default='casia', help='dataset name')
     parser.add_argument('--metric', type=str, default='arc_margin', help='Metrics Name')
     parser.add_argument('--weight', type=str, default=None, help='Pretrained model weight path')
+    parser.add_argument('--mweight', type=str, default=None, help='pretrained metric weight path')
+    parser.add_argument('--loss', type=str, default='logloss', help='Loss Function.')
 
     # optimizer settings
     parser.add_argument('--optimizer', type=str, default='sgd', help='Optimizer Name')
@@ -47,9 +49,10 @@ class Config(object):
     metric = args.get('metric', None)
     easy_margin = False
     use_se = False
-    loss = 'logloss'
+    loss = args.get('loss', None)
 
     pretrained_model_path = args.get('weight', None)
+    pretrained_metric_path = args.get('mweight', None)
 
     display = False
     finetune = False
@@ -92,3 +95,6 @@ class Config(object):
 
     checkpoints_path = os.path.join(DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{now}')
     config_path = os.path.join(checkpoints_path, 'train_config.json')
+
+
+os.makedirs(Config.checkpoints_path, exist_ok=True)

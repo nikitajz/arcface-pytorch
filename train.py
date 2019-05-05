@@ -15,7 +15,7 @@ from utils import Visualizer
 from utils.logger import get_logger
 from utils.serializer import class_to_dict
 
-logger = get_logger(__name__)
+logger = get_logger(__name__, output_file=os.path.join(Config.checkpoints_path, 'log.txt'))
 
 
 def top_accuracy(output, target, topk=(1,)):
@@ -94,12 +94,14 @@ if __name__ == '__main__':
     identity_list = get_lfw_list(opt.lfw_test_list)
     img_paths = [os.path.join(opt.lfw_root, each) for each in identity_list]
 
-    print('{} train iters per epoch:'.format(len(trainloader)))
+    logger.info('{} train iters per epoch:'.format(len(trainloader)))
 
     if opt.loss == 'focal_loss':
         criterion = FocalLoss(gamma=2)
-    else:
+    elif opt.loss == 'logloss':
         criterion = torch.nn.CrossEntropyLoss()
+    else:
+        raise ValueError()
 
     model = get_model(opt.backbone)()
 
@@ -118,8 +120,12 @@ if __name__ == '__main__':
     else:
         raise ValueError('Invalid Metric Name: {}'.format(opt.metric))
 
+    if Config.pretrained_metric_path:
+        logger.info(f'load metric weight from {Config.pretrained_metric_path}')
+        metric_fc.load_state_dict(torch.load(Config.pretrained_metric_path))
+
     # view_model(model, opt.input_shape)
-    print(model)
+    logger.info(model)
     model.to(device)
     metric_fc.to(device)
 
@@ -181,6 +187,7 @@ if __name__ == '__main__':
                 iters = epoch * len(trainloader) + i
 
                 metric = calculate_metrics(output, label)
+                metric[Config.loss] = loss.item()
                 metric['lr'] = get_lr(optimizer)
                 callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
                 if Config.is_debug:
