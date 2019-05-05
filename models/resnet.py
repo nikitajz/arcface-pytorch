@@ -227,8 +227,7 @@ class ResNet(nn.Module):
         self.embedding_dim = 512
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=1, padding=1,
-                               bias=False)
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(64)
         self.relu = nn.ReLU(inplace=True)
         self.maxpool1 = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -237,10 +236,14 @@ class ResNet(nn.Module):
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
 
-        self.avgpool = nn.AdaptiveAvgPool2d(output_size=(1, 1))
-        self.maxpool = nn.AdaptiveMaxPool2d(output_size=(1, 1))
-        self.fc = nn.Linear(512 * block.expansion, self.embedding_dim)
-        self.bn = nn.BatchNorm1d(self.embedding_dim)
+        self.n_block_out = 512 * 13 * 13
+
+        self.fc = nn.Sequential(
+            nn.BatchNorm1d(self.n_block_out),
+            nn.Dropout(p=.5),
+            nn.Linear(self.n_block_out, self.embedding_dim),
+            nn.BatchNorm1d(self.embedding_dim)
+        )
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -276,14 +279,9 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-
-        # average と max pooling を使ってる
-        output = self.avgpool(x)
-        output.add_(self.maxpool(x))
-        output = output.view(output.size(0), -1)
-        output = self.bn(output)
-        output = self.fc(output)
-        return output
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        return x
 
 
 def resnet18(pretrained=False, **kwargs):
