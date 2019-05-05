@@ -29,6 +29,7 @@ class AbstractDataset(data.Dataset):
         normalize = T.Normalize(mean=[0.5], std=[0.5])
         if self.phase == 'train':
             self.transforms = T.Compose([
+                T.RandomResizedCrop(size=(300, 300), scale=(.8, 1.5), ratio=(1., 1.)),
                 T.RandomCrop(self.input_shape[1:]),
                 T.RandomHorizontalFlip(),
                 T.ToTensor(),
@@ -132,6 +133,7 @@ class CASIAFullDataset(AbstractDataset):
 
 class CASIADataset(CASIAFullDataset):
     min_value_count = 200
+    meta_filename = f'meta_{min_value_count}.csv'
 
 
 class CelebaDataset(AbstractDataset):
