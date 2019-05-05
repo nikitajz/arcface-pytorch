@@ -14,7 +14,7 @@ from test import *
 from utils import Visualizer
 from utils.logger import get_logger
 from utils.serializer import class_to_dict
-
+from src.lfw_test import run_test_accuracy
 logger = get_logger(__name__, output_file=os.path.join(Config.checkpoints_path, 'log.txt'))
 
 
@@ -197,9 +197,11 @@ if __name__ == '__main__':
                 save_model(metric_fc, opt.checkpoints_path, opt.metric, epoch)
 
             model.eval()
-            acc, th = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
-            if opt.display:
-                visualizer.display_current_results(iters, acc, name='test_acc')
+            # acc, th = lfw_test(model, img_paths, identity_list, opt.lfw_test_list, opt.test_batch_size)
+            # if opt.display:
+            #     visualizer.display_current_results(iters, acc, name='test_acc')
+
+            acc, th = run_test_accuracy(model, device=device)
 
             callback.on_epoch_end(epoch, valid_metric={'accuracy': acc, 'threshold': th})
 
