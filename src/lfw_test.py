@@ -17,15 +17,6 @@ from tqdm import tqdm
 
 from models.resnet import get_model
 
-
-def get_args():
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter,
-                            description=__doc__)
-    parser.add_argument('-w' '--weight', type=str, required=True, help='path to pretrained model weight')
-    parser.add_argument('-n', '--n_trials', type=int, default=200)
-    return vars(parser.parse_args())
-
-
 backbone = 'resnet18'
 lfw_txt_path = '/workdir/lfw_test_pair.txt'
 lfw_root = '/workdir/dataset/lfw-deepfunneled/'
@@ -95,6 +86,26 @@ class LFWObjective:
 
 
 def run_test_accuracy(model, resize_size=351, use_flip=True, device=None):
+    """
+    lwf dataset でテスト精度を検証する
+    テスト画像は一度 `resize_size` に拡大縮小されたあと, 画像の中心から input_size だけ切り取りをする.
+
+    ## Note
+
+    * 今の初期値(例えば `resize_size=351`) は optuna で最適化された値。
+      本当は mtcnn 等でアラインメントをするべきなのだけれどまだできていない。
+    * `use_flip` は True のほうがよさ気.
+
+    Args:
+        model: 検証するモデル
+        resize_size: テスト画像のリサイズサイズ
+        use_flip: True のとき flip した画像と元画像の特徴ベクトルを concat したベクトルを特徴ベクトルとする.
+        device: pytorch.device oject
+
+    Returns:
+
+    """
+
     test_transformer = transforms.Compose([
         transforms.Resize(size=(resize_size, resize_size)),
         transforms.CenterCrop(size=input_shape[1:]),
@@ -139,6 +150,14 @@ def run_test_accuracy(model, resize_size=351, use_flip=True, device=None):
     acc = np.max(val)
     best_threshold = thresholds[np.argmax(val)]
     return acc, best_threshold
+
+
+def get_args():
+    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter,
+                            description=__doc__)
+    parser.add_argument('-w' '--weight', type=str, required=True, help='path to pretrained model weight')
+    parser.add_argument('-n', '--n_trials', type=int, default=200)
+    return vars(parser.parse_args())
 
 
 if __name__ == '__main__':

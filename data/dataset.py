@@ -29,7 +29,6 @@ class AbstractDataset(data.Dataset):
         normalize = T.Normalize(mean=[0.5], std=[0.5])
         if self.phase == 'train':
             self.transforms = T.Compose([
-                T.RandomResizedCrop(size=(300, 300), scale=(.8, 1.5), ratio=(1., 1.)),
                 T.RandomCrop(self.input_shape[1:]),
                 T.RandomHorizontalFlip(),
                 T.ToTensor(),
@@ -105,6 +104,13 @@ class AbstractDataset(data.Dataset):
 
 
 class CASIAFullDataset(AbstractDataset):
+    """
+    CASIA Full Dataset
+
+    あまり画像枚数が多くない人物が増えると学習が上手く行かないと考えて
+    画像枚数の最小値 `min_value_count` を設定できるようにしています.
+
+    """
     root_path = os.path.join(env.DATASET_DIR, 'CASIA-WebFace')
     relative_path = False
     meta_filename = 'meta_full.csv'
@@ -132,6 +138,11 @@ class CASIAFullDataset(AbstractDataset):
 
 
 class CASIADataset(CASIAFullDataset):
+    """
+    CASIA (mini) Dataset
+
+    200 枚の画像がない人物を弾いています
+    """
     min_value_count = 200
     meta_filename = f'meta_{min_value_count}.csv'
 
