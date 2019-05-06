@@ -91,12 +91,12 @@ if __name__ == '__main__':
     device = torch.device("cuda")
 
     train_dataset = get_dataset(Config.dataset, phase='train', input_shape=opt.input_shape)
-    trainloader = data.DataLoader(train_dataset,
-                                  batch_size=opt.train_batch_size,
-                                  shuffle=True,
-                                  num_workers=opt.num_workers)
+    train_loader = data.DataLoader(train_dataset,
+                                   batch_size=opt.train_batch_size,
+                                   shuffle=True,
+                                   num_workers=opt.num_workers)
 
-    logger.info('{} train iters per epoch:'.format(len(trainloader)))
+    logger.info('{} train iters per epoch:'.format(len(train_loader)))
 
     if opt.loss == 'focal_loss':
         criterion = FocalLoss(gamma=2)
@@ -174,7 +174,7 @@ if __name__ == '__main__':
             model.train()
             callback.on_epoch_start(epoch)
 
-            for i, data in enumerate(trainloader):
+            for i, data in enumerate(train_loader):
                 callback.on_batch_start(n_batch=i)
                 data_input, label = data
                 data_input = data_input.to(device)
@@ -186,7 +186,7 @@ if __name__ == '__main__':
                 loss.backward()
                 optimizer.step()
 
-                iters = epoch * len(trainloader) + i
+                iters = epoch * len(train_loader) + i
 
                 metric = calculate_metrics(output, label)
                 metric[Config.loss] = loss.item()
