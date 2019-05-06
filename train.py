@@ -1,18 +1,24 @@
 from __future__ import print_function
 
 import json
+import os
 from collections import OrderedDict
 
+import torch
 from adabound import AdaBound
+from torch import nn
+from torch.nn import DataParallel
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
 
 import env
 from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNotifyCallback, WeightCheckpointCallback
+from config import Config
 from data.dataset import get_dataset
+from models.focal_loss import FocalLoss
+from models.metrics import AddMarginProduct, ArcMarginProduct, SphereProduct
+from models.resnet import get_model
 from src.lfw_test import run_test_accuracy
-from test import *
-from utils import Visualizer
 from utils.logger import get_logger
 from utils.serializer import class_to_dict
 
@@ -35,7 +41,7 @@ def top_accuracy(output, target, topk=(1,)):
             x = correct_k.mul_(100.0 / batch_size)
             x = x.data.cpu().numpy()[0]
             res.append(x)
-        return res
+    return res
 
 
 def save_model(model, save_path, name, iter_cnt):
@@ -82,8 +88,6 @@ class LinearMetrics(nn.Module):
 if __name__ == '__main__':
 
     opt = Config()
-    if opt.display:
-        visualizer = Visualizer()
     device = torch.device("cuda")
 
     train_dataset = get_dataset(Config.dataset, phase='train', input_shape=opt.input_shape)
@@ -91,9 +95,6 @@ if __name__ == '__main__':
                                   batch_size=opt.train_batch_size,
                                   shuffle=True,
                                   num_workers=opt.num_workers)
-
-    identity_list = get_lfw_list(opt.lfw_test_list)
-    img_paths = [os.path.join(opt.lfw_root, each) for each in identity_list]
 
     logger.info('{} train iters per epoch:'.format(len(trainloader)))
 
@@ -161,8 +162,6 @@ if __name__ == '__main__':
         callbacks.append(SlackNotifyCallback(url=env.SLACK_INCOMMING_URL, config=Config))
 
     callback = Callbacks(callbacks)
-
-    start = time.time()
 
     with open(Config.config_path, 'w') as f:
         data = class_to_dict(Config)
