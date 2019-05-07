@@ -7,7 +7,7 @@ from PIL import Image
 from torch.utils import data
 from torchvision import transforms as T
 
-import env
+import environments
 
 
 class AbstractDataset(data.Dataset):
@@ -111,7 +111,7 @@ class CASIAFullDataset(AbstractDataset):
     画像枚数の最小値 `min_value_count` を設定できるようにしています.
 
     """
-    root_path = os.path.join(env.DATASET_DIR, 'CASIA-WebFace')
+    root_path = os.path.join(environments.DATASET_DIR, 'CASIA-WebFace')
     relative_path = False
     meta_filename = 'meta_full.csv'
     min_value_count = 20
@@ -148,7 +148,7 @@ class CASIADataset(CASIAFullDataset):
 
 
 class CelebaDataset(AbstractDataset):
-    root_path = os.path.join(env.DATASET_DIR, 'celeba')
+    root_path = os.path.join(environments.DATASET_DIR, 'celeba')
     relative_path = True
     n_classes = 2000
 
