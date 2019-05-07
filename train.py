@@ -7,11 +7,10 @@ from collections import OrderedDict
 import torch
 from adabound import AdaBound
 from torch import nn
-from torch.nn import DataParallel
 from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
 
-import env
+import environments
 from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNotifyCallback, WeightCheckpointCallback
 from config import Config
 from data.dataset import get_dataset
@@ -90,7 +89,7 @@ if __name__ == '__main__':
     opt = Config()
     device = torch.device("cuda")
 
-    train_dataset = get_dataset(Config.dataset, phase='train', input_shape=opt.input_shape)
+    train_dataset = get_dataset(Config.dataset, phase='train', input_shape=environments.INPUT_SHAPE)
     train_loader = data.DataLoader(train_dataset,
                                    batch_size=opt.train_batch_size,
                                    shuffle=True,
@@ -128,10 +127,7 @@ if __name__ == '__main__':
 
     logger.info(model)
     model.to(device)
-    model = DataParallel(model)
-
     metric_fc.to(device)
-    metric_fc = DataParallel(metric_fc)
 
     params = [{'params': model.parameters()}, {'params': metric_fc.parameters()}]
     if Config.optimizer == 'sgd':
@@ -157,9 +153,9 @@ if __name__ == '__main__':
                                  metric_model=metric_fc)
     ]
 
-    if env.SLACK_INCOMMING_URL and not Config.is_debug:
+    if environments.SLACK_INCOMMING_URL and not Config.is_debug:
         logger.info('Add Slack Notification')
-        callbacks.append(SlackNotifyCallback(url=env.SLACK_INCOMMING_URL, config=Config))
+        callbacks.append(SlackNotifyCallback(url=environments.SLACK_INCOMMING_URL, config=Config))
 
     callback = Callbacks(callbacks)
 

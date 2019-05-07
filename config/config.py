@@ -1,7 +1,8 @@
 import os
-
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 from datetime import datetime
+
+import environments
 
 
 def get_time_string(t=None, formatting='{0:%Y-%m-%d_%H-%M-%S}'):
@@ -43,7 +44,6 @@ class Config(object):
     now = get_time_string()
 
     is_debug = args.get('debug', False)
-    env = 'default'
     backbone = 'resnet18'
     classify = 'softmax'
     dataset = args.get('dataset', None)
@@ -55,30 +55,14 @@ class Config(object):
     pretrained_model_path = args.get('weight', None)
     pretrained_metric_path = args.get('mweight', None)
 
-    display = False
-    finetune = False
-
-    DATASET_DIR = '/workdir/dataset/'
-
-    # CASIA DATASET のルートディレクトリ
-    CASIA_ROOT = os.path.join(DATASET_DIR, 'CASIA-WebFace')
-    lfw_root = os.path.join(DATASET_DIR, 'lfw-deepfunneled')
-    lfw_test_list = os.path.join(lfw_root, 'lfw_test_pair.txt')
-
     # 学習に関するパラメータ
     # [TODO] arg で制御したい気分
     save_interval = 10
 
     train_batch_size = args.get('batch', 32)  # batch size
     test_batch_size = 64
-
-    input_shape = (3, 200, 200)
-
     # optimizer name: `"adam"`, `"sgd"`, `"adabound"`
     optimizer = args.get('optimizer', None)
-
-    use_gpu = True  # use GPU or not
-    gpu_id = '0, 1'
     num_workers = 8  # how many workers for loading data
     print_freq = 100  # print info every N batch
 
@@ -94,7 +78,7 @@ class Config(object):
     final_lr = args.get('final_lr', .2)
     amsbound = True
 
-    checkpoints_path = os.path.join(DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{now}')
+    checkpoints_path = os.path.join(environments.DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{now}')
     config_path = os.path.join(checkpoints_path, 'train_config.json')
 
 
