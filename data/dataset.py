@@ -14,7 +14,6 @@ class AbstractDataset(data.Dataset):
     root_path = None
     meta_filename = 'meta.csv'
     relative_path = True
-    n_classes = None
 
     label_colname = 'label'
     img_colname = 'img_path'
@@ -88,6 +87,10 @@ class AbstractDataset(data.Dataset):
     def create_metadata(self) -> pd.DataFrame:
         raise NotImplementedError()
 
+    @property
+    def n_classes(self):
+        return len(self.df_meta[self.label_colname].unique())
+
     def __getitem__(self, index):
         data = self.index_to_data[index]
         img_path, label = data[self.img_colname], data[self.label_colname]
@@ -132,10 +135,6 @@ class CASIAFullDataset(AbstractDataset):
         use = vc[vc >= self.min_value_count]
         return use.index
 
-    @property
-    def n_classes(self):
-        return len(self.df_meta[self.label_colname].unique())
-
 
 class CASIADataset(CASIAFullDataset):
     """
@@ -153,11 +152,22 @@ class CelebaDataset(AbstractDataset):
     n_classes = 2000
 
 
+class CASIAAlignDataset(AbstractDataset):
+    root_path = os.path.join(environments.DATASET_DIR, 'casiafull_polished')
+    relative_path = True
+
+    def read_metadata(self, force=False):
+        df = pd.read_csv(self.meta_path)
+        df = df[~df[self.img_colname].isnull()].reset_index(drop=True)
+        return df
+
+
 def get_dataset(name, *args, **kwargs) -> AbstractDataset:
     all_datasets = [
         CASIAFullDataset,
         CASIADataset,
-        CelebaDataset
+        CelebaDataset,
+        CASIAAlignDataset
     ]
 
     for d in all_datasets:
