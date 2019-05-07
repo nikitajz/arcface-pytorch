@@ -99,7 +99,8 @@ def main():
 
     df_meta = pd.DataFrame(results, columns=['img_path', 'prob'])
     df_meta['origin_path'] = dataset.df_meta[dataset.img_colname]
-    df_meta.to_csv(os.path.join(root_path, 'meta.csv'))
+    df_meta[dataset.label_colname] = dataset.df_meta[dataset.label_colname]
+    df_meta.to_csv(os.path.join(root_path, 'meta.csv'), index=False)
 
 
 if __name__ == '__main__':
