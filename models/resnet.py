@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on 18-5-21 下午5:26
-
-@author: ronghuaiyang
-"""
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
 

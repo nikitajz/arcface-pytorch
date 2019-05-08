@@ -14,6 +14,7 @@ import environments
 from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNotifyCallback, WeightCheckpointCallback
 from config import Config
 from data.dataset import get_dataset
+from evaluation.clf import CFPEvaluation
 from models.focal_loss import FocalLoss
 from models.metrics import AddMarginProduct, ArcMarginProduct, SphereProduct
 from models.resnet import get_model
@@ -153,6 +154,11 @@ if __name__ == '__main__':
                                  metric_model=metric_fc)
     ]
 
+    eval_functions = [
+        CFPEvaluation(eval_type='ff'),
+        CFPEvaluation(eval_type='fp')
+    ]
+
     if environments.SLACK_INCOMMING_URL and not Config.is_debug:
         logger.info('Add Slack Notification')
         callbacks.append(SlackNotifyCallback(url=environments.SLACK_INCOMMING_URL, config=Config))
@@ -196,8 +202,16 @@ if __name__ == '__main__':
 
             # eval on LDW Dataset
             model.eval()
+            valid_metrics = dict()
             acc, th = run_test_accuracy(model, device=device)
-            callback.on_epoch_end(epoch, valid_metric={'accuracy': acc, 'threshold': th})
+            valid_metrics['lfw_accuracy'] = acc
+            valid_metrics['lfw_threshold'] = th
+
+            for f in eval_functions:
+                val_data = f.call(model, input_shape=environments.INPUT_SHAPE, device=device)
+                valid_metrics.update(val_data)
+
+            callback.on_epoch_end(epoch, valid_metric=valid_metrics)
 
         callback.on_end_train()
     except KeyboardInterrupt as e:
