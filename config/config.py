@@ -55,10 +55,7 @@ class Config(object):
     pretrained_model_path = args.get('weight', None)
     pretrained_metric_path = args.get('mweight', None)
 
-    # 学習に関するパラメータ
-    # [TODO] arg で制御したい気分
-    save_interval = 10
-
+    save_interval = 5
     train_batch_size = args.get('batch', 32)  # batch size
     test_batch_size = 64
     # optimizer name: `"adam"`, `"sgd"`, `"adabound"`
@@ -78,7 +75,7 @@ class Config(object):
     final_lr = args.get('final_lr', .2)
     amsbound = True
 
-    checkpoints_path = os.path.join(environments.DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{now}')
+    checkpoints_path = os.path.join(environments.DATASET_DIR, 'checkpoints', f'{dataset}_{optimizer}_{metric}_{now}')
     config_path = os.path.join(checkpoints_path, 'train_config.json')
 
 
