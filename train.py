@@ -11,14 +11,13 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils import data
 
 import environments
-from callbacks import TensorboardLogger, LoggingCallback, Callbacks, SlackNotifyCallback, WeightCheckpointCallback
+from callback import TensorboardLogger, LoggingCallback, CallbackManager, SlackNotifyCallback, WeightCheckpointCallback
 from config import Config
 from data.dataset import get_dataset
-from evaluation.clf import CFPEvaluation
+from evaluation import LFWEvaluation, CFPEvaluation
 from models.focal_loss import FocalLoss
 from models.metrics import AddMarginProduct, ArcMarginProduct, SphereProduct
 from models.resnet import get_model
-from src.lfw_test import run_test_accuracy
 from utils.logger import get_logger
 from utils.serializer import class_to_dict
 
@@ -147,23 +146,22 @@ if __name__ == '__main__':
         raise ValueError('Invalid Optimizer Name: {}'.format(Config.optimizer))
     scheduler = StepLR(optimizer, step_size=opt.lr_step, gamma=0.1)
 
-    callbacks = [
+    callback_manager = CallbackManager([
         TensorboardLogger(log_dir=Config.checkpoints_path),
         LoggingCallback(),
         WeightCheckpointCallback(save_to=Config.checkpoints_path,
                                  metric_model=metric_fc)
-    ]
+    ])
 
     eval_functions = [
         CFPEvaluation(eval_type='ff'),
-        CFPEvaluation(eval_type='fp')
+        CFPEvaluation(eval_type='fp'),
+        LFWEvaluation()
     ]
 
     if environments.SLACK_INCOMMING_URL and not Config.is_debug:
         logger.info('Add Slack Notification')
-        callbacks.append(SlackNotifyCallback(url=environments.SLACK_INCOMMING_URL, config=Config))
-
-    callback = Callbacks(callbacks)
+        callback_manager.callbacks.append(SlackNotifyCallback(url=environments.SLACK_INCOMMING_URL, config=Config))
 
     with open(Config.config_path, 'w') as f:
         data = class_to_dict(Config)
@@ -174,10 +172,10 @@ if __name__ == '__main__':
         for epoch in range(opt.max_epoch):
             scheduler.step()
             model.train()
-            callback.on_epoch_start(epoch)
+            callback_manager.on_epoch_start(epoch)
 
             for i, data in enumerate(train_loader):
-                callback.on_batch_start(n_batch=i)
+                callback_manager.on_batch_start(n_batch=i)
                 data_input, label = data
                 data_input = data_input.to(device)
                 label = label.to(device).long()
@@ -193,7 +191,7 @@ if __name__ == '__main__':
                 metric = calculate_metrics(output, label)
                 metric[Config.loss] = loss.item()
                 metric['lr'] = get_lr(optimizer)
-                callback.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
+                callback_manager.on_batch_end(loss=loss.item(), n_batch=i, train_metric=metric)
                 if Config.is_debug:
                     break
             if epoch % opt.save_interval == 0 or epoch == opt.max_epoch:
@@ -203,22 +201,18 @@ if __name__ == '__main__':
             # eval on LDW Dataset
             model.eval()
             valid_metrics = dict()
-            acc, th = run_test_accuracy(model, device=device)
-            valid_metrics['lfw_accuracy'] = acc
-            valid_metrics['lfw_threshold'] = th
-
             for f in eval_functions:
                 val_data = f.call(model, input_shape=environments.INPUT_SHAPE, device=device)
                 valid_metrics.update(val_data)
 
-            callback.on_epoch_end(epoch, valid_metric=valid_metrics)
+            callback_manager.on_epoch_end(epoch, valid_metric=valid_metrics)
 
-        callback.on_end_train()
+        callback_manager.on_end_train()
     except KeyboardInterrupt as e:
-        callback.on_end_train(e)
+        callback_manager.on_end_train(e)
 
     except Exception as e:
         import traceback
 
         logger.warning(traceback.format_exc())
-        callback.on_end_train(e)
+        callback_manager.on_end_train(e)

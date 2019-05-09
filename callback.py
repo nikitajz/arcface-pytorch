@@ -146,15 +146,14 @@ class LoggingCallback(AbstractCallback):
             return
 
         data = dict([[k, np.mean(v)] for k, v in self.losses.items()])
-        logger.info(
-            f'[epoch:{self.epoch:04d}-{n_batch:05d}] {get_str_from_dict(data)}')
+        print(f'[epoch:{self.epoch:04d}-{n_batch:05d}] {get_str_from_dict(data)}')
 
     def _init(self):
         self.losses = defaultdict(list)
 
     def on_epoch_end(self, epoch: int, valid_metric: dict):
         s = get_str_from_dict(valid_metric)
-        logger.info(f'[validate] {s}')
+        print(f'[validate] {s}')
         self._init()
 
 
@@ -181,7 +180,7 @@ class WeightCheckpointCallback(AbstractCallback):
             logger.warning(str(e))
 
 
-class Callbacks(AbstractCallback):
+class CallbackManager(AbstractCallback):
     def __init__(self, callbacks: List[AbstractCallback]):
         self.callbacks = callbacks
 
