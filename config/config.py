@@ -18,8 +18,7 @@ def get_arguments():
     parser.add_argument('--debug', action='store_true',
                         help='If add it, run with debugging mode (not record and stop one batch per epoch')
     # model setting
-    parser.add_argument('--dataset', type=str, default='casiafull', help='dataset name',
-                        choices=['casia', 'casiafull', 'casiaalign', 'celeba'])
+    parser.add_argument('--dataset', type=str, default='casiafull', help='dataset name')
     parser.add_argument('--metric', type=str, default='arc_margin', help='Metrics Name')
     parser.add_argument('--weight', type=str, default=None, help='pre-trained model weight path')
     parser.add_argument('--mweight', type=str, default=None, help='pre-trained metric weight path')

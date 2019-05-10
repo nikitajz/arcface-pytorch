@@ -102,7 +102,8 @@ class AbstractBooleanEvaluation:
             model.to(device)
 
         test_transformer = transforms.Compose([
-            transforms.CenterCrop(size=input_shape[1:]),
+            # transforms.CenterCrop(size=input_shape[1:]),
+            transforms.Resize(size=input_shape[1:]),
             transforms.ToTensor(),
             transforms.Normalize(mean=[.5], std=[.5])
         ])
