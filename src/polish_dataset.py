@@ -8,12 +8,14 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import cv2
 import numpy as np
 import pandas as pd
+from PIL import Image
 from tqdm import tqdm
 
 import environments
 from data.dataset import get_dataset
 from face_detection import MtcnnDetector
 from face_detection.mtcnn_detector import mx
+from img_utils import clop_center
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -60,6 +62,9 @@ def get_arguments():
 def main():
     args = get_arguments()
     logger.info(args)
+    target_size = args.get('size')
+    padding_ratio = args.get('padding')
+
     dataset = get_dataset(args.get('dataset', None))
     print(dataset.root_path)
 
@@ -67,11 +72,9 @@ def main():
     if dataset.relative_path:
         img_paths = [os.path.join(dataset.root_path, p) for p in img_paths]
 
-    new_dataset_name = f'{dataset.name()}_polished'
+    new_dataset_name = f'{dataset.name()}_{target_size}_pad={padding_ratio}'
     root_path = os.path.join(environments.DATASET_DIR, new_dataset_name)
     os.makedirs(root_path, exist_ok=True)
-
-    target_size = args.get('size')
 
     if args.get('gpu', False):
         logger.info('use gpu')
@@ -89,13 +92,21 @@ def main():
         os.makedirs(dir_path, exist_ok=True)
 
         try:
-            clipped, prob = clip_most_humanise_image(detector, img, target_size=target_size, padding_ratio=.3)
-            new_path = os.path.join(dir_path, f'{filename}x{target_size}_{prob:.3f}.jpg')
-            cv2.imwrite(new_path, clipped)
-            results.append([os.path.relpath(new_path, root_path), prob])
+            clipped, prob = clip_most_humanise_image(detector, img,
+                                                     target_size=target_size,
+                                                     padding_ratio=padding_ratio)
+            new_filename = f'{filename}_{prob:.3f}.jpg'
         except NotDetectionError as e:
-            print(e)
-            results.append([None, -1])
+            # 切り取れなかった時は中心から切り出す
+            img = Image.fromarray(img)
+            prob = -1
+            clipped = clop_center(img, target_shape=(target_size, target_size))
+            clipped = np.array(clipped)
+            new_filename = f'{filename}_not-detected.jpg'
+
+        new_path = os.path.join(dir_path, new_filename)
+        cv2.imwrite(new_path, clipped)
+        results.append([os.path.relpath(new_path, root_path), prob])
 
     df_meta = pd.DataFrame(results, columns=['img_path', 'prob'])
     df_meta['origin_path'] = dataset.df_meta[dataset.img_colname]

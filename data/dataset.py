@@ -146,6 +146,14 @@ class CASIADataset(CASIAFullDataset):
     meta_filename = f'meta_{min_value_count}.csv'
 
 
+class CASIAAllDataset(CASIAFullDataset):
+    """
+    CASIA Dataset using all images
+    """
+    min_value_count = 0
+    meta_filename = f'meta_{min_value_count}.csv'
+
+
 class CelebaDataset(AbstractDataset):
     root_path = os.path.join(environments.DATASET_DIR, 'celeba')
     relative_path = True
@@ -162,12 +170,19 @@ class CASIAAlignDataset(AbstractDataset):
         return df
 
 
+class CASIAAlign112Dataset(AbstractDataset):
+    root_path = os.path.join(environments.DATASET_DIR, 'casiaall_112_pad=0.2')
+    relative_path = True
+
+
 def get_dataset(name, *args, **kwargs) -> AbstractDataset:
     all_datasets = [
         CASIAFullDataset,
         CASIADataset,
+        CASIAAllDataset,
         CelebaDataset,
-        CASIAAlignDataset
+        CASIAAlignDataset,
+        CASIAAlign112Dataset
     ]
 
     for d in all_datasets:
