@@ -25,19 +25,17 @@ class AbstractDataset(data.Dataset):
 
         self.phase = phase
         self.input_shape = input_shape
-        normalize = T.Normalize(mean=[0.5], std=[0.5])
         if self.phase == 'train':
             self.transforms = T.Compose([
                 T.RandomCrop(self.input_shape[1:]),
+                T.RandomGrayscale(),
                 T.RandomHorizontalFlip(),
                 T.ToTensor(),
-                normalize
             ])
         else:
             self.transforms = T.Compose([
                 T.CenterCrop(self.input_shape[1:]),
                 T.ToTensor(),
-                normalize
             ])
 
         self.df_meta = self.read_metadata(force=recreate)
@@ -100,7 +98,7 @@ class AbstractDataset(data.Dataset):
         data = Image.open(img_path)
         data = data.convert(self.img_to)
         data = self.transforms(data)
-        return data.float(), label
+        return data, label
 
     def __len__(self):
         return len(self.df_meta)
