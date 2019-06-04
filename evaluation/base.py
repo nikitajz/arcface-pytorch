@@ -95,20 +95,20 @@ class AbstractBooleanEvaluation:
             if not os.path.isfile(img_path):
                 raise ValueError(f'{img_path} is not file. (maybe dir)')
 
+    def get_test_transformer(self, input_shape):
+        return transforms.Compose([
+            transforms.Resize(size=input_shape[1:]),
+            transforms.ToTensor(),
+        ])
+
     def call(self, model, input_shape, device=None):
         model.eval()
 
         if device:
             model.to(device)
 
-        test_transformer = transforms.Compose([
-            # transforms.CenterCrop(size=input_shape[1:]),
-            transforms.Resize(size=input_shape[1:]),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[.5], std=[.5])
-        ])
-
         name2embedding = OrderedDict()
+        test_transformer = self.get_test_transformer(input_shape)
 
         for p in tqdm(self.use_images, total=len(self.use_images)):
             img_path_i = self.get_img_fullpath(p)
